@@ -114,6 +114,13 @@ define('forum/register', [
 		$('#username').trigger('focus');
 	};
 
+	// helper to build suggestion
+	function suggestUsername(name) {
+		name = (name || '').trim();
+		if (!name) { return ''; }
+		return name + '0';
+	}
+
 	function validateUsername(username, callback) {
 		callback = callback || function () {};
 
@@ -135,7 +142,16 @@ define('forum/register', [
 				if (results.every(obj => obj.status === 'rejected')) {
 					showSuccess(usernameInput, username_notify, successIcon);
 				} else {
-					showError(usernameInput, username_notify, '[[error:username-taken]]');
+					// showError(usernameInput, username_notify, '[[error:username-taken]]');
+					const suggestion = suggestUsername(username);
+					const msg = suggestion
+						? `That username is taken. Try "${suggestion}".`
+						: 'That username is taken.';
+					showError(usernameInput, username_notify, msg);
+					if (suggestion) {
+						usernameInput.val(suggestion);
+						$('#yourUsername').text(slugify(suggestion));
+					}
 				}
 
 				callback();
