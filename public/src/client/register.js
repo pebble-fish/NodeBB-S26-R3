@@ -114,11 +114,50 @@ define('forum/register', [
 		$('#username').trigger('focus');
 	};
 
-	// helper to build suggestion
+	// helper to build suggestion (task 2)
 	function suggestUsername(name) {
 		name = (name || '').trim();
 		if (!name) { return ''; }
 		return name + '0';
+	}
+	// (task 4)
+	async function usernameExists(userslug) {
+		try {
+			await api.head(`/users/bySlug/${userslug}`, {});
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	async function groupExists(groupname) {
+		try {
+			await api.head(`/groups/${groupname}`, {});
+			return true;
+		} catch (e) {
+			return false;
+		}
+	}
+
+	async function findUniqueUsername(base, maxTries) {
+		base = (base || '').trim();
+		if (!base) return '';
+		maxTries = maxTries || 20;
+		for (let k = 1; k <= maxTries; k++) {
+			const candidate = `${base}${k}`;
+			const slug = slugify(candidate);
+			if (candidate.length > ajaxify.data.maximumUsernameLength) {
+				break;
+			}
+			const [userTaken, groupTaken] = await Promise.all([
+				usernameExists(slug),
+				groupExists(candidate),
+			]);
+			if (!userTaken && !groupTaken) {
+				return candidate;
+			}
+		}
+		return '';
 	}
 
 	function validateUsername(username, callback) {
@@ -143,15 +182,29 @@ define('forum/register', [
 					showSuccess(usernameInput, username_notify, successIcon);
 				} else {
 					// showError(usernameInput, username_notify, '[[error:username-taken]]');
-					const suggestion = suggestUsername(username);
-					const msg = suggestion
-						? `That username is taken. Try "${suggestion}".`
-						: 'That username is taken.';
-					showError(usernameInput, username_notify, msg);
-					if (suggestion) {
-						usernameInput.val(suggestion);
-						$('#yourUsername').text(slugify(suggestion));
-					}
+					// (task 2)
+					// const suggestion = suggestUsername(username);
+					// const msg = suggestion
+					// 	? `That username is taken. Try "${suggestion}".`
+					// 	: 'That username is taken.';
+					// showError(usernameInput, username_notify, msg);
+					// if (suggestion) {
+					// 	usernameInput.val(suggestion);
+					// 	$('#yourUsername').text(slugify(suggestion));
+					// }
+					findUniqueUsername(username, 30).then((suggestion) => {
+						if (suggestion) {
+							showError(usernameInput, username_notify, `That username is taken. Try "${suggestion}".`);
+							usernameInput.val(suggestion);
+							$('#yourUsername').text(slugify(suggestion));
+						} else {
+							showError(usernameInput, username_notify, '[[error:username-taken]]');
+						}
+					}).finally(() => {
+						callback();
+					});
+
+					return;
 				}
 
 				callback();
